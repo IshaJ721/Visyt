@@ -3,42 +3,63 @@ import MapKit
 
 struct DiscoverView: View {
     @EnvironmentObject var vm: AppViewModel
+
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
+    @State private var sheetDetent: PresentationDetent = .medium
     @State private var showRoute = false
     @State private var route: MKRoute?
+    @State private var centeredOnUser = false
 
     var participatingCafes: [Cafe] { vm.cafes.filter { $0.isParticipating } }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            map
-            bottomSheet
+        ZStack {
+            mapView
+                .ignoresSafeArea()
         }
-        .ignoresSafeArea(edges: .top)
-        .sheet(isPresented: $vm.showCheckIn) {
-            if let cafe = vm.selectedCafe {
-                CheckInView(cafe: cafe)
-            }
+        // Persistent draggable bottom sheet
+        .sheet(isPresented: .constant(true)) {
+            cafeListSheet
+                .presentationDetents([.height(90), .medium, .large], selection: $sheetDetent)
+                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
+                .interactiveDismissDisabled()
+                .presentationCornerRadius(22)
+                .sheet(isPresented: $vm.showCheckIn) {
+                    if let cafe = vm.selectedCafe {
+                        CheckInView(cafe: cafe)
+                    }
+                }
         }
         .fullScreenCover(isPresented: $vm.showSession) {
             SessionView()
         }
-        .onAppear { vm.requestLocation() }
+        .onAppear {
+            vm.requestLocation()
+        }
+        // Center map on first real location fix
+        .onChange(of: vm.userLocation) { _, newLoc in
+            guard !centeredOnUser, let loc = newLoc else { return }
+            centeredOnUser = true
+            withAnimation(.easeInOut(duration: 0.8)) {
+                position = .region(MKCoordinateRegion(
+                    center: loc.coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
+                ))
+            }
+        }
     }
 
     // MARK: - Map
 
-    private var map: some View {
+    private var mapView: some View {
         Map(position: $position) {
-            // User location
             UserAnnotation()
 
-            // Cafe pins
             ForEach(participatingCafes) { cafe in
                 Annotation(cafe.name, coordinate: cafe.coordinate) {
                     CafePin(isSelected: vm.selectedCafe?.id == cafe.id)
@@ -51,50 +72,62 @@ struct DiscoverView: View {
                 }
             }
 
-            // Route overlay
             if showRoute, let route {
                 MapPolyline(route.polyline)
-                    .stroke(Color.accent, lineWidth: 4)
+                    .stroke(Color.accent, style: StrokeStyle(lineWidth: 5, lineCap: .round))
             }
         }
         .mapControls {
             MapUserLocationButton()
             MapCompass()
+            MapScaleView()
         }
-        .frame(height: UIScreen.main.bounds.height * 0.55)
+        .mapStyle(.standard(elevation: .realistic))
     }
 
-    // MARK: - Bottom Sheet
+    // MARK: - Bottom Sheet Content
 
-    private var bottomSheet: some View {
+    private var cafeListSheet: some View {
         VStack(spacing: 0) {
-            // Route preview bar (shown when cafe selected)
-            if let cafe = vm.selectedCafe {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(cafe.name).font(.headline)
-                        Text(cafe.neighborhood).font(.caption).foregroundStyle(.secondary)
+            // Drag handle
+            Capsule()
+                .fill(Color(.systemFill))
+                .frame(width: 36, height: 5)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
+
+            // Route preview bar when a cafe is selected
+            if let cafe = vm.selectedCafe, sheetDetent != .height(90) {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(cafe.name)
+                            .font(.subheadline.bold())
+                        Text(cafe.neighborhood)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button(showRoute ? "Hide Route" : "Preview Route") {
-                        if showRoute {
-                            showRoute = false
-                            route = nil
-                        } else {
-                            fetchRoute(to: cafe)
-                        }
+                    Button {
+                        if showRoute { showRoute = false; route = nil }
+                        else { fetchRoute(to: cafe) }
+                    } label: {
+                        Label(showRoute ? "Hide Route" : "Walking Route",
+                              systemImage: showRoute ? "xmark" : "figure.walk")
+                            .font(.caption.bold())
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.accentLight)
+                            .foregroundStyle(Color.accent)
+                            .clipShape(Capsule())
                     }
-                    .font(.caption)
-                    .buttonStyle(.bordered)
-                    .tint(Color.accent)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.secondarySystemGroupedBackground))
+                .padding(.bottom, 12)
+
+                Divider()
             }
 
-            Divider()
-
+            // Cafe cards list
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 12) {
                     ForEach(participatingCafes) { cafe in
@@ -105,14 +138,12 @@ struct DiscoverView: View {
                             }
                     }
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 32)
             }
-            .background(Color(.systemGroupedBackground))
         }
         .background(Color(.systemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 12, y: -4)
-        .frame(height: UIScreen.main.bounds.height * 0.48)
     }
 
     // MARK: - Helpers
@@ -121,47 +152,52 @@ struct DiscoverView: View {
         withAnimation {
             position = .region(MKCoordinateRegion(
                 center: cafe.coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.02, longitudeDelta: 0.02)
+                span: MKCoordinateSpan(latitudeDelta: 0.018, longitudeDelta: 0.018)
             ))
         }
     }
 
     private func fetchRoute(to cafe: Cafe) {
-        guard let userLoc = vm.userLocation else {
-            showRoute = true
-            return
+        let origin: CLLocationCoordinate2D
+        if let loc = vm.userLocation {
+            origin = loc.coordinate
+        } else {
+            origin = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
         }
         let request = MKDirections.Request()
-        request.source = MKMapItem(placemark: MKPlacemark(coordinate: userLoc.coordinate))
+        request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))
         request.destination = MKMapItem(placemark: MKPlacemark(coordinate: cafe.coordinate))
         request.transportType = .walking
         MKDirections(request: request).calculate { response, _ in
             DispatchQueue.main.async {
                 route = response?.routes.first
                 showRoute = true
+                withAnimation { sheetDetent = .height(90) }  // shrink sheet to reveal route
             }
         }
     }
 }
 
-// MARK: - CafePin
+// MARK: - Cafe Pin
 
 struct CafePin: View {
     let isSelected: Bool
     var body: some View {
         ZStack {
             Circle()
-                .fill(isSelected ? Color.accent : Color.white)
-                .frame(width: 32, height: 32)
-                .shadow(radius: 3)
+                .fill(isSelected ? Color.accent : .white)
+                .frame(width: 36, height: 36)
+                .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
             Image(systemName: "cup.and.saucer.fill")
-                .font(.system(size: 14))
+                .font(.system(size: 15))
                 .foregroundStyle(isSelected ? .white : Color.accent)
         }
+        .scaleEffect(isSelected ? 1.15 : 1.0)
+        .animation(.spring(duration: 0.2), value: isSelected)
     }
 }
 
-// MARK: - LocationCard
+// MARK: - Location Card
 
 struct LocationCard: View {
     @EnvironmentObject var vm: AppViewModel
@@ -169,43 +205,57 @@ struct LocationCard: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        VStack(alignment: .leading, spacing: 12) {
+
+            // Name + distance
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(cafe.name).font(.headline)
-                    Text(cafe.neighborhood).font(.caption).foregroundStyle(.secondary)
+                    Text(cafe.name)
+                        .font(.headline)
+                    Text(cafe.neighborhood)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(vm.distance(to: cafe))
-                    .font(.caption)
+                    .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
 
+            // Description
+            Text(cafe.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            // Seats + price
             HStack(spacing: 6) {
                 Label("\(cafe.seatsAvailable) seats", systemImage: "person.2.fill")
-                    .font(.caption)
-                    .foregroundStyle(cafe.seatsAvailable > 0 ? .green : .red)
+                    .font(.caption.bold())
+                    .foregroundStyle(cafe.seatsAvailable > 0 ? Color.accent : .red)
                 Spacer()
-                Text("$\(cafe.pricePerSession, specifier: "%.0f") / \(cafe.sessionMinutes) min")
-                    .font(.caption)
+                Text("$\(Int(cafe.pricePerSession)) / \(cafe.sessionMinutes) min")
+                    .font(.caption.bold())
                     .foregroundStyle(Color.accent)
-                    .fontWeight(.semibold)
             }
 
+            // Vibe tags
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(cafe.vibeTags, id: \.self) { tag in
                         Text(tag)
-                            .font(.caption2)
-                            .padding(.horizontal, 8)
+                            .font(.caption2.weight(.medium))
+                            .padding(.horizontal, 9)
                             .padding(.vertical, 4)
-                            .background(Color.accent.opacity(0.1))
+                            .background(Color.accentLight)
                             .foregroundStyle(Color.accent)
                             .clipShape(Capsule())
                     }
                 }
             }
 
+            // Check in button
             Button {
                 vm.selectedCafe = cafe
                 vm.showCheckIn = true
@@ -213,20 +263,20 @@ struct LocationCard: View {
                 Text("Check In")
                     .font(.subheadline.bold())
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(cafe.seatsAvailable > 0 ? Color.accent : Color.gray)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.vertical, 11)
+                    .background(cafe.seatsAvailable > 0 ? Color.accent : Color(.systemFill))
+                    .foregroundStyle(cafe.seatsAvailable > 0 ? .white : Color(.secondaryLabel))
+                    .clipShape(RoundedRectangle(cornerRadius: 11))
             }
             .disabled(cafe.seatsAvailable == 0)
         }
         .padding(14)
         .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 16)
                 .stroke(isSelected ? Color.accent : Color.clear, lineWidth: 2)
         )
-        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+        .shadow(color: .black.opacity(0.04), radius: 5, y: 2)
     }
 }
