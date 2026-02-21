@@ -6,7 +6,7 @@ struct DiscoverView: View {
 
     @State private var position: MapCameraPosition = .region(
         MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194),
+            center: CLLocationCoordinate2D(latitude: 30.2900, longitude: -97.7400),
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
@@ -162,7 +162,7 @@ struct DiscoverView: View {
         if let loc = vm.userLocation {
             origin = loc.coordinate
         } else {
-            origin = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
+            origin = CLLocationCoordinate2D(latitude: 30.2849, longitude: -97.7341) // UT Austin
         }
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))

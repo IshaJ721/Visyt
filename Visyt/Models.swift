@@ -54,49 +54,50 @@ struct Transaction: Identifiable, Codable {
 extension Cafe {
     static var demoData: [Cafe] {
         [
+            // Near UT Austin — real locations
             Cafe(
-                name: "Sightglass Coffee",
-                neighborhood: "SoMa",
-                description: "A sprawling, light-filled warehouse space with sky-high ceilings and the best pour-overs in the city. Great for deep work sessions.",
-                latitude: 37.7749, longitude: -122.4194,
-                vibeTags: ["Quiet", "Fast WiFi", "Power Outlets"],
-                totalSeats: 12, seatsAvailable: 8,
+                name: "Caffe Medici",
+                neighborhood: "The Drag",
+                description: "Right on Guadalupe across from UT, this espresso-forward staple draws students and professors alike. Marble counters, soft lighting, and some of the best cappuccinos in Austin.",
+                latitude: 30.2906, longitude: -97.7430,
+                vibeTags: ["Quiet", "Fast WiFi", "Espresso"],
+                totalSeats: 14, seatsAvailable: 9,
                 pricePerSession: 2.0, sessionMinutes: 90,
                 isParticipating: true,
                 ownerID: "merchant1"      // ← the merchant's shop
             ),
 
             Cafe(
-                name: "Ritual Coffee",
-                neighborhood: "Hayes Valley",
-                description: "A neighbourhood staple with warm wood tones and a loyal creative crowd. Expect lively background buzz and exceptional espresso drinks.",
-                latitude: 37.7759, longitude: -122.4245,
-                vibeTags: ["Lively", "Espresso", "Communal Tables"],
-                totalSeats: 8, seatsAvailable: 3,
+                name: "Spider House Café",
+                neighborhood: "West Campus",
+                description: "An Austin institution steps from campus. Covered outdoor patios strung with lights, mismatched furniture, and a buzzing creative energy that makes long study sessions feel effortless.",
+                latitude: 30.2963, longitude: -97.7497,
+                vibeTags: ["Outdoor Patio", "Lively", "Late Night"],
+                totalSeats: 20, seatsAvailable: 12,
                 pricePerSession: 2.0, sessionMinutes: 90,
                 isParticipating: true,
                 ownerID: "other"
             ),
 
             Cafe(
-                name: "Four Barrel Coffee",
-                neighborhood: "Mission",
-                description: "An airy, exposed-brick café perfect for long afternoons. The bookshelf wall and soft lighting make it a favourite for writers and remote workers.",
-                latitude: 37.7643, longitude: -122.4215,
-                vibeTags: ["Cozy", "Bookshelf", "Low Key"],
-                totalSeats: 10, seatsAvailable: 10,
+                name: "Epoch Coffee",
+                neighborhood: "North Loop",
+                description: "Open 24/7 and beloved for it. Epoch is the go-to for night owls and early risers, with a warm neighbourhood feel, strong cold brew, and always-reliable WiFi.",
+                latitude: 30.3163, longitude: -97.7267,
+                vibeTags: ["24/7", "Cold Brew", "Power Outlets"],
+                totalSeats: 18, seatsAvailable: 18,
                 pricePerSession: 2.0, sessionMinutes: 90,
                 isParticipating: false,
                 ownerID: "other"
             ),
 
             Cafe(
-                name: "Verve Coffee",
-                neighborhood: "Castro",
-                description: "Bright, plant-lined walls and a large outdoor patio make this the go-to for sunny day working. Fast WiFi and friendly staff seal the deal.",
-                latitude: 37.7609, longitude: -122.4350,
-                vibeTags: ["Outdoor Seating", "Fast WiFi", "Plants"],
-                totalSeats: 6, seatsAvailable: 6,
+                name: "Houndstooth Coffee",
+                neighborhood: "Downtown",
+                description: "Sleek, minimal, and serious about coffee. Houndstooth's downtown location draws the after-class crowd with precision brews, fast WiFi, and plenty of desk space near the windows.",
+                latitude: 30.2669, longitude: -97.7430,
+                vibeTags: ["Minimal", "Fast WiFi", "Window Seats"],
+                totalSeats: 10, seatsAvailable: 6,
                 pricePerSession: 2.0, sessionMinutes: 90,
                 isParticipating: true,
                 ownerID: "other"
