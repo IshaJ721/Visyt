@@ -47,13 +47,22 @@ class AppViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     // MARK: - Init
 
+    /// Bump this whenever demo cafe data changes to force a refresh from UserDefaults cache.
+    private let dataVersion = "v3-austin"
+
     override init() {
         let rawRole = UserDefaults.standard.string(forKey: "role") ?? ""
         self.role = AppRole(rawValue: rawRole) ?? .none
 
         super.init()
 
-        cafes = load([Cafe].self, key: "cafes") ?? Cafe.demoData
+        // Reset cafe data if app version changed (clears stale SF locations)
+        if UserDefaults.standard.string(forKey: "dataVersion") == dataVersion {
+            cafes = load([Cafe].self, key: "cafes") ?? Cafe.demoData
+        } else {
+            cafes = Cafe.demoData
+            UserDefaults.standard.set(dataVersion, forKey: "dataVersion")
+        }
         activeSession = load(Session.self, key: "activeSession")
         sessionHistory = load([Session].self, key: "sessionHistory") ?? []
         walletCredit = UserDefaults.standard.double(forKey: "walletCredit")

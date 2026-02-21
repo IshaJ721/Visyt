@@ -10,38 +10,42 @@ struct DiscoverView: View {
             span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
         )
     )
-    @State private var sheetDetent: PresentationDetent = .medium
+    @State private var centeredOnUser = false
+
+    // Panel state
+    @State private var panelHeight: CGFloat = 280
+    @State private var dragOffset: CGFloat = 0
+    private let snapHeights: [CGFloat] = [90, 280, 560]
+    private let panelTotalHeight: CGFloat = 640
+
+    // Route
     @State private var showRoute = false
     @State private var route: MKRoute?
-    @State private var centeredOnUser = false
 
     var participatingCafes: [Cafe] { vm.cafes.filter { $0.isParticipating } }
 
+    // How far down to offset the panel so that only `visibleHeight` pts show above the bottom
+    private var panelOffset: CGFloat {
+        let visible = (panelHeight + dragOffset).clamped(to: snapHeights[0]...snapHeights.last!)
+        return panelTotalHeight - visible
+    }
+
     var body: some View {
-        ZStack {
+        ZStack(alignment: .bottom) {
             mapView
                 .ignoresSafeArea()
+
+            draggablePanel
         }
-        // Persistent draggable bottom sheet
-        .sheet(isPresented: .constant(true)) {
-            cafeListSheet
-                .presentationDetents([.height(90), .medium, .large], selection: $sheetDetent)
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-                .interactiveDismissDisabled()
-                .presentationCornerRadius(22)
-                .sheet(isPresented: $vm.showCheckIn) {
-                    if let cafe = vm.selectedCafe {
-                        CheckInView(cafe: cafe)
-                    }
-                }
+        .sheet(isPresented: $vm.showCheckIn) {
+            if let cafe = vm.selectedCafe {
+                CheckInView(cafe: cafe)
+            }
         }
         .fullScreenCover(isPresented: $vm.showSession) {
             SessionView()
         }
-        .onAppear {
-            vm.requestLocation()
-        }
-        // Center map on first real location fix
+        .onAppear { vm.requestLocation() }
         .onChange(of: vm.userLocation) { _, newLoc in
             guard !centeredOnUser, let loc = newLoc else { return }
             centeredOnUser = true
@@ -85,9 +89,9 @@ struct DiscoverView: View {
         .mapStyle(.standard(elevation: .realistic))
     }
 
-    // MARK: - Bottom Sheet Content
+    // MARK: - Draggable Panel
 
-    private var cafeListSheet: some View {
+    private var draggablePanel: some View {
         VStack(spacing: 0) {
             // Drag handle
             Capsule()
@@ -96,22 +100,19 @@ struct DiscoverView: View {
                 .padding(.top, 10)
                 .padding(.bottom, 8)
 
-            // Route preview bar when a cafe is selected
-            if let cafe = vm.selectedCafe, sheetDetent != .height(90) {
+            // Route preview bar (visible when cafe selected and panel not fully open)
+            if let cafe = vm.selectedCafe {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(cafe.name)
-                            .font(.subheadline.bold())
-                        Text(cafe.neighborhood)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Text(cafe.name).font(.subheadline.bold())
+                        Text(cafe.neighborhood).font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     Button {
                         if showRoute { showRoute = false; route = nil }
                         else { fetchRoute(to: cafe) }
                     } label: {
-                        Label(showRoute ? "Hide Route" : "Walking Route",
+                        Label(showRoute ? "Hide" : "Walking Route",
                               systemImage: showRoute ? "xmark" : "figure.walk")
                             .font(.caption.bold())
                             .padding(.horizontal, 10)
@@ -122,12 +123,12 @@ struct DiscoverView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 10)
 
                 Divider()
             }
 
-            // Cafe cards list
+            // Cafe list
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 12) {
                     ForEach(participatingCafes) { cafe in
@@ -142,11 +143,38 @@ struct DiscoverView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 32)
             }
+
+            Spacer(minLength: 0)
         }
-        .background(Color(.systemGroupedBackground))
+        .frame(height: panelTotalHeight)
+        .frame(maxWidth: .infinity)
+        .background(
+            Color(.systemGroupedBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.10), radius: 16, y: -4)
+        )
+        .offset(y: panelOffset)
+        .gesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { value in
+                    dragOffset = -value.translation.height
+                }
+                .onEnded { value in
+                    let projected = panelHeight - value.predictedEndTranslation.height
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                        panelHeight = snap(projected)
+                        dragOffset = 0
+                    }
+                }
+        )
+        .animation(.spring(response: 0.35, dampingFraction: 0.78), value: panelHeight)
     }
 
     // MARK: - Helpers
+
+    private func snap(_ height: CGFloat) -> CGFloat {
+        snapHeights.min(by: { abs($0 - height) < abs($1 - height) }) ?? 280
+    }
 
     private func centerMap(on cafe: Cafe) {
         withAnimation {
@@ -158,12 +186,8 @@ struct DiscoverView: View {
     }
 
     private func fetchRoute(to cafe: Cafe) {
-        let origin: CLLocationCoordinate2D
-        if let loc = vm.userLocation {
-            origin = loc.coordinate
-        } else {
-            origin = CLLocationCoordinate2D(latitude: 30.2849, longitude: -97.7341) // UT Austin
-        }
+        let origin = vm.userLocation?.coordinate
+            ?? CLLocationCoordinate2D(latitude: 30.2849, longitude: -97.7341)
         let request = MKDirections.Request()
         request.source = MKMapItem(placemark: MKPlacemark(coordinate: origin))
         request.destination = MKMapItem(placemark: MKPlacemark(coordinate: cafe.coordinate))
@@ -172,7 +196,9 @@ struct DiscoverView: View {
             DispatchQueue.main.async {
                 route = response?.routes.first
                 showRoute = true
-                withAnimation { sheetDetent = .height(90) }  // shrink sheet to reveal route
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                    panelHeight = snapHeights[0]   // collapse to peek so route is visible
+                }
             }
         }
     }
@@ -207,14 +233,10 @@ struct LocationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
 
-            // Name + distance
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(cafe.name)
-                        .font(.headline)
-                    Text(cafe.neighborhood)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(cafe.name).font(.headline)
+                    Text(cafe.neighborhood).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(vm.distance(to: cafe))
@@ -222,14 +244,12 @@ struct LocationCard: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Description
             Text(cafe.description)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // Seats + price
             HStack(spacing: 6) {
                 Label("\(cafe.seatsAvailable) seats", systemImage: "person.2.fill")
                     .font(.caption.bold())
@@ -240,7 +260,6 @@ struct LocationCard: View {
                     .foregroundStyle(Color.accent)
             }
 
-            // Vibe tags
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(cafe.vibeTags, id: \.self) { tag in
@@ -255,7 +274,6 @@ struct LocationCard: View {
                 }
             }
 
-            // Check in button
             Button {
                 vm.selectedCafe = cafe
                 vm.showCheckIn = true
