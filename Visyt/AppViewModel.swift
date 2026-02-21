@@ -48,7 +48,7 @@ class AppViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     // MARK: - Init
 
     /// Bump this whenever demo cafe data changes to force a refresh from UserDefaults cache.
-    private let dataVersion = "v3-austin"
+    private let dataVersion = "v4-venues"
 
     override init() {
         let rawRole = UserDefaults.standard.string(forKey: "role") ?? ""

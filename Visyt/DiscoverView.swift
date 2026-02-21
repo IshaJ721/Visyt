@@ -66,7 +66,7 @@ struct DiscoverView: View {
 
             ForEach(participatingCafes) { cafe in
                 Annotation(cafe.name, coordinate: cafe.coordinate) {
-                    CafePin(isSelected: vm.selectedCafe?.id == cafe.id)
+                    CafePin(isSelected: vm.selectedCafe?.id == cafe.id, icon: cafe.pinIcon)
                         .onTapGesture {
                             withAnimation { vm.selectedCafe = cafe }
                             centerMap(on: cafe)
@@ -208,18 +208,41 @@ struct DiscoverView: View {
 
 struct CafePin: View {
     let isSelected: Bool
+    var icon: String = "cup.and.saucer.fill"
+
     var body: some View {
         ZStack {
             Circle()
                 .fill(isSelected ? Color.accent : .white)
                 .frame(width: 36, height: 36)
                 .shadow(color: .black.opacity(0.18), radius: 4, y: 2)
-            Image(systemName: "cup.and.saucer.fill")
-                .font(.system(size: 15))
+            Image(systemName: icon)
+                .font(.system(size: 14))
                 .foregroundStyle(isSelected ? .white : Color.accent)
         }
         .scaleEffect(isSelected ? 1.15 : 1.0)
         .animation(.spring(duration: 0.2), value: isSelected)
+    }
+}
+
+// MARK: - Venue Type Badge
+
+struct VenueTypeBadge: View {
+    let type: String
+
+    private var icon: String {
+        switch type {
+        case "Hotel":       return "bed.double.fill"
+        case "Event Venue": return "theatermasks.fill"
+        case "Library":     return "books.vertical.fill"
+        default:            return "cup.and.saucer.fill"
+        }
+    }
+
+    var body: some View {
+        Label(type, systemImage: icon)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(Color.accent)
     }
 }
 
@@ -234,9 +257,13 @@ struct LocationCard: View {
         VStack(alignment: .leading, spacing: 12) {
 
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(cafe.name).font(.headline)
-                    Text(cafe.neighborhood).font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text(cafe.neighborhood).font(.caption).foregroundStyle(.secondary)
+                        Text("·").foregroundStyle(.tertiary).font(.caption)
+                        VenueTypeBadge(type: cafe.venueType)
+                    }
                 }
                 Spacer()
                 Text(vm.distance(to: cafe))
