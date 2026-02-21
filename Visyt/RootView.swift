@@ -13,12 +13,16 @@ struct RootView: View {
 }
 
 // MARK: - Logo Mark
+//
+// Concept: a coffee cup with WiFi arcs rising from it — directly communicates
+// "get online and work from a café." The map pin dot grounds it in location.
 
 struct LogoMark: View {
     var size: CGFloat = 88
 
     var body: some View {
         ZStack {
+            // Badge
             RoundedRectangle(cornerRadius: size * 0.26)
                 .fill(
                     LinearGradient(
@@ -30,25 +34,18 @@ struct LogoMark: View {
                 .frame(width: size, height: size)
                 .shadow(color: Color.accent.opacity(0.45), radius: 18, y: 8)
 
-            // V shape from two capsules + leaf accent
-            ZStack {
-                Capsule()
-                    .fill(.white.opacity(0.92))
-                    .frame(width: size * 0.13, height: size * 0.44)
-                    .rotationEffect(.degrees(-22))
-                    .offset(x: -size * 0.17, y: -size * 0.04)
+            VStack(spacing: size * 0.04) {
+                // WiFi arcs — connectivity / working remotely
+                Image(systemName: "wifi")
+                    .font(.system(size: size * 0.30, weight: .semibold))
+                    .foregroundStyle(.white)
 
-                Capsule()
-                    .fill(.white.opacity(0.92))
-                    .frame(width: size * 0.13, height: size * 0.44)
-                    .rotationEffect(.degrees(22))
-                    .offset(x: size * 0.17, y: -size * 0.04)
-
-                Image(systemName: "leaf.fill")
-                    .font(.system(size: size * 0.15))
-                    .foregroundStyle(.white.opacity(0.72))
-                    .offset(y: size * 0.23)
+                // Coffee cup — the café
+                Image(systemName: "cup.and.saucer.fill")
+                    .font(.system(size: size * 0.28))
+                    .foregroundStyle(.white.opacity(0.90))
             }
+            .offset(y: size * 0.03)
         }
     }
 }
