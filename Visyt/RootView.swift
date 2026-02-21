@@ -14,8 +14,8 @@ struct RootView: View {
 
 // MARK: - Logo Mark
 //
-// Concept: a coffee cup with WiFi arcs rising from it — directly communicates
-// "get online and work from a café." The map pin dot grounds it in location.
+// Concept: WiFi above a generic venue/building — communicates "get connected
+// inside any space" (cafes, hotels, event venues, lounges, etc.)
 
 struct LogoMark: View {
     var size: CGFloat = 88
@@ -34,14 +34,14 @@ struct LogoMark: View {
                 .frame(width: size, height: size)
                 .shadow(color: Color.accent.opacity(0.45), radius: 18, y: 8)
 
-            VStack(spacing: size * 0.04) {
-                // WiFi arcs — connectivity / working remotely
+            VStack(spacing: size * 0.05) {
+                // WiFi — connectivity, working from anywhere
                 Image(systemName: "wifi")
                     .font(.system(size: size * 0.30, weight: .semibold))
                     .foregroundStyle(.white)
 
-                // Coffee cup — the café
-                Image(systemName: "cup.and.saucer.fill")
+                // Building — any venue, not just cafes
+                Image(systemName: "building.2.fill")
                     .font(.system(size: size * 0.28))
                     .foregroundStyle(.white.opacity(0.90))
             }
@@ -80,8 +80,8 @@ struct RoleSelectionView: View {
 
             VStack(spacing: 14) {
                 RoleButton(
-                    title: "Continue as User",
-                    subtitle: "Find cafes & check in",
+                    title: "Find a Space",
+                    subtitle: "Cafes, hotels, venues & more",
                     systemImage: "person.fill"
                 ) {
                     vm.role = .user
@@ -89,8 +89,8 @@ struct RoleSelectionView: View {
                 }
 
                 RoleButton(
-                    title: "Continue as Merchant",
-                    subtitle: "Manage your café",
+                    title: "I'm a Venue Partner",
+                    subtitle: "Manage your space & sessions",
                     systemImage: "building.2.fill"
                 ) {
                     vm.role = .merchant
